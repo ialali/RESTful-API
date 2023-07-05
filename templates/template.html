@@ -5,34 +5,39 @@
     <link rel="stylesheet" href="static/css/style.css" />
     <title>Groupie Trackers</title>
     <style>
-        .container {
+        .artist-container {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
+            justify-content: flex-start;
         }
 
-        .item {
+        .artist-card {
             width: 25%;
             padding: 10px;
             box-sizing: border-box;
-            text-align: center;
         }
 
-        .item img {
-            display: block;
-            max-width: 100%;
+        .artist-card img {
+            width: 60%;
             height: auto;
-            margin-bottom: 5px;
+            object-fit: contain;
         }
 
-        .item p {
-            margin: 0;
+        @media screen and (max-width: 768px) {
+            .artist-card {
+                width: 33.33%;
+            }
         }
 
-        .no-bands {
-            text-align: center;
+        @media screen and (max-width: 480px) {
+            .artist-card {
+                width: 50%;
+            }
         }
     </style>
+
+
+
 </head>
 
 <body>
@@ -47,13 +52,44 @@
     <h1>Band Information</h1>
 
     {{if .Artists}}
-    <div class="container">
+    <div class="artist-container">
         {{range .Artists}}
-        <div class="item">
-            <img class="resize" src="{{.Image}}" alt="{{.Name}}" />
-            <p>{{.Name}}</p>
+        <div class="artist-card">
+            <img src="{{.Image}}" alt="{{.Name}}" />
+            <h2>{{.Name}}</h2>
+            <p>Members: {{range .Members}}{{.}}, {{end}}</p>
+            <p>Creation Date: {{.CreationDate}}</p>
+            <p>First Album: {{.FirstAlbum}}</p>
+            <p>Locations:</p>
+            <ul>
+                {{range .Locations.Index}}
+                {{range .Locations}}
+                <li>{{.}}</li>
+                {{end}}
+                {{end}}
+            </ul>
+            <p>Dates:</p>
+            <ul>
+                {{range .Dates.Index}}
+                {{range .Dates}}
+                <li>{{.}}</li>
+                {{end}}
+                {{end}}
+            </ul>
+            <p>Relations:</p>
+            <ul>
+                {{range .Relations.Index}}
+                {{range .Relations.DatesLocations}}
+                {{range .}}
+                <li>{{.}}</li>
+                {{end}}
+                {{end}}
+                {{end}}
+            </ul>
         </div>
         {{end}}
+
+
     </div>
 
     {{else}}

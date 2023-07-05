@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"html/template"
 	"log"
 	"net/http"
-	"text/template"
 	"time"
 )
 
@@ -63,21 +63,21 @@ func Getjson(url string, target interface{}) error {
 
 	return json.NewDecoder(resp.Body).Decode(target)
 }
-func HandleHomePage(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.Error(w, "404 Page Not Found", http.StatusNotFound)
-		return
-	}
-	data := map[string]interface{}{
-		"Artists": artists,
-	}
-	// Serve the HTML page with the filtered artists
-	tmpl := template.Must(template.ParseFiles("templates/template.html"))
-	err := tmpl.Execute(w, data)
-	if err != nil {
-		return
-	}
+
+func main() {
+	client = &http.Client{Timeout: 10 * time.Second}
+
+	Getjson("https://groupietrackers.herokuapp.com/api/artists", &artists)
+	Getjson("https://groupietrackers.herokuapp.com/api/locations", &locations)
+	Getjson("https://groupietrackers.herokuapp.com/api/dates", &dates)
+	Getjson("https://groupietrackers.herokuapp.com/api/relation", &relations)
+	AppendToStruct() // Associate locations, dates, and relations with each artist
+	http.HandleFunc("/", dateHandler)
+
+	log.Println("Server listening on port 8080...")
+	log.Fatal(http.ListenAndServe(":8090", nil))
 }
+
 func AppendToStruct() {
 	for index := range locations.Index {
 		artists[index].Locations.Index = append(artists[index].Locations.Index, locations.Index[index])
@@ -89,21 +89,22 @@ func AppendToStruct() {
 
 	for index := range relations.Index {
 		artists[index].Relations.Index = append(artists[index].Relations.Index, relations.Index[index])
-
 	}
 }
 
-func main() {
-	client = &http.Client{Timeout: 10 * time.Second}
-	fs := http.FileServer(http.Dir("static"))
-
-	Getjson("https://groupietrackers.herokuapp.com/api/artists", &artists)
-	Getjson("https://groupietrackers.herokuapp.com/api/locations", &locations)
-	Getjson("https://groupietrackers.herokuapp.com/api/dates", &dates)
-	Getjson("https://groupietrackers.herokuapp.com/api/relations", &relations)
-	AppendToStruct() // Associate locations, dates, and relations with each artist
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.HandleFunc("/", HandleHomePage)
-	log.Println("Server listening http://localhost:8027")
-	log.Fatal(http.ListenAndServe(":8027", nil))
+func dateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.Error(w, "404 Page Not Found", http.StatusNotFound)
+		return
+	}
+	data := map[string]interface{}{
+		"Artists": artists,
+	}
+	// Serve the HTML page with the filtered artists
+	tmpl := template.Must(template.ParseFiles("index.html"))
+	err := tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
