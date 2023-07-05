@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="static/css/style.css" />
+    <title>Groupie Trackers</title>
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+
+        .item {
+            width: 25%;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .item img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 5px;
+        }
+
+        .item p {
+            margin: 0;
+        }
+
+        .no-bands {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation bar -->
+    <div class="navbar">
+        <a class="active" href="/">Home</a>
+        <a href="/dates">Dates</a>
+        <a href="/loc">Locations</a>
+        <a href="/rel">Relations</a>
+    </div>
+
+    <h1>Band Information</h1>
+
+    {{if .Artists}}
+    <div class="container">
+        {{range .Artists}}
+        <div class="item">
+            <img class="resize" src="{{.Image}}" alt="{{.Name}}" />
+            <p>{{.Name}}</p>
+        </div>
+        {{end}}
+    </div>
+
+    {{else}}
+    <p class="no-bands">There are no bands added yet.</p>
+    {{end}}
+</body>
+
+</html>

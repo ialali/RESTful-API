@@ -2,110 +2,108 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"html/template"
 	"log"
 	"net/http"
+	"text/template"
 	"time"
 )
 
+var Artists []Artist
+var locations Locations
+var dates Dates
+var relations Relations
 var client *http.Client
 
 type Artist struct {
-	ID           int           `json:"id"`
-	Image        string        `json:"image"`
-	Name         string        `json:"name"`
-	Members      []string      `json:"members"`
-	Year         int           `json:"creationDate"`
-	FirstAlbum   string        `json:"firstAlbum"`
-	Locations    []Location    `json:"-"`
-	ConcertDates []ConcertDate `json:"-"`
-	Relations    []Relation    `json:"-"`
+	ID           int64    `json:"id"`
+	Image        string   `json:"image"`
+	Name         string   `json:"name"`
+	Members      []string `json:"members"`
+	CreationDate int64    `json:"creationDate"`
+	FirstAlbum   string   `json:"firstAlbum"`
+	Locations    Locations
+	Dates        Dates
+	Relations    Relations
+}
+
+type Locations struct {
+	Index []Location `json:"index"`
 }
 
 type Location struct {
-	ID        int         `json:"id"`
-	Locations []string    `json:"locations"`
-	Date      ConcertDate `json:"-"`
+	ID        int64    `json:"id"`
+	Locations []string `json:"locations"`
+	Dates     string   `json:"dates"`
 }
 
-type ConcertDate struct {
-	ID    int      `json:"id"`
+type Dates struct {
+	Index []Date `json:"index"`
+}
+
+type Date struct {
+	ID    int64    `json:"id"`
 	Dates []string `json:"dates"`
 }
+
+type Relations struct {
+	Index []Relation `json:"index"`
+}
+
 type Relation struct {
+	ID             int64                  `json:"id"`
+	DatesLocations map[string]interface{} `json:"datesLocations"`
 }
 
-func GetArtists() ([]Artist, error) {
-	url := "https://groupietrackers.herokuapp.com/api/artists"
-	var artists []Artist
-	err := GetJson(url, &artists)
-	if err != nil {
-		return nil, fmt.Errorf("error getting artist data: %s", err)
-	}
-	return artists, nil
-}
-
-func GetJson(url string, target interface{}) error {
+func Getjson(url string, target interface{}) error {
 	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP request failed with status code %d", resp.StatusCode)
-	}
+
 	return json.NewDecoder(resp.Body).Decode(target)
 }
-
-func GetLocations() ([]string, error) {
-	url := "https://groupietrackers.herokuapp.com/api/locations"
-	var location Location
-	err := GetJson(url, &location)
-	if err != nil {
-		return nil, fmt.Errorf("error getting locations: %s", err)
+func HandleHomePage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.Error(w, "404 Page Not Found", http.StatusNotFound)
+		return
 	}
-	return location.Locations, nil
-}
-
-func GetConcertDates() ([]string, error) {
-	url := "https://groupietrackers.herokuapp.com/api/dates"
-
-	var concertDates ConcertDate
-	err := GetJson(url, &concertDates)
-	if err != nil {
-		return nil, fmt.Errorf("error getting concert dates: %s", err)
+	data := map[string]interface{}{
+		"Artists": Artists,
 	}
-	return concertDates.Dates, nil
-}
-
-func handleArtists(w http.ResponseWriter, r *http.Request) {
-	artists, err := GetArtists()
+	// Serve the HTML page with the filtered artists
+	tmpl := template.Must(template.ParseFiles("templates/template.html"))
+	err := tmpl.Execute(w, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("Retrieved Artists:")
-	for _, artist := range artists {
-		fmt.Println(artist.Name)
+}
+func AppendToStruct() {
+	for index := range locations.Index {
+		Artists[index].Locations.Index = append(Artists[index].Locations.Index, locations.Index[index])
 	}
 
-	tmpl := template.Must(template.ParseFiles("template.html"))
-	err = tmpl.Execute(w, artists)
-	if err != nil {
-		return
+	for index := range dates.Index {
+		Artists[index].Dates.Index = append(Artists[index].Dates.Index, dates.Index[index])
+	}
+
+	for index := range relations.Index {
+		Artists[index].Relations.Index = append(Artists[index].Relations.Index, relations.Index[index])
 	}
 }
 
 func main() {
 	client = &http.Client{Timeout: 10 * time.Second}
+	fs := http.FileServer(http.Dir("static"))
 
-	http.HandleFunc("/", handleArtists)
-
-	log.Println("Server listening on http://localhost:8028")
-	err := http.ListenAndServe(":8028", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Getjson("https://groupietrackers.herokuapp.com/api/artists", &Artists)
+	Getjson("https://groupietrackers.herokuapp.com/api/locations", &locations)
+	Getjson("https://groupietrackers.herokuapp.com/api/dates", &dates)
+	Getjson("https://groupietrackers.herokuapp.com/api/relation", &relations)
+	AppendToStruct() // Associate locations, dates, and relations with each artist
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.HandleFunc("/", HandleHomePage)
+	log.Println("Server listening http://localhost:8027")
+	log.Fatal(http.ListenAndServe(":8027", nil))
 }
